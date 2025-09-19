@@ -91,13 +91,38 @@
             75% { transform: translateX(5px); }
         }
 
-        .speech-section {
+        .input-section {
             text-align: center;
             margin-bottom: 30px;
             padding: 20px;
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .mode-selector {
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            padding: 10px 20px;
+            margin: 0 5px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn.active {
+            background: #2196f3;
+            color: white;
+            border-color: #2196f3;
+        }
+
+        .mode-btn:hover {
+            border-color: #2196f3;
         }
 
         .microphone-btn {
@@ -128,10 +153,42 @@
             cursor: not-allowed;
         }
 
+        .microphone-btn.retry {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+        }
+
         @keyframes listening-pulse {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(78, 205, 196, 0.7); }
             70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(78, 205, 196, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(78, 205, 196, 0); }
+        }
+
+        .text-input-area {
+            margin: 20px 0;
+        }
+
+        .word-input {
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 200px;
+            text-align: center;
+        }
+
+        .submit-btn {
+            padding: 15px 25px;
+            font-size: 16px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .submit-btn:hover {
+            background: #45a049;
         }
 
         .speech-status {
@@ -141,21 +198,11 @@
             font-weight: bold;
         }
 
-        .status-listening {
-            color: #4ecdc4;
-        }
-
-        .status-processing {
-            color: #ffa726;
-        }
-
-        .status-correct {
-            color: #4caf50;
-        }
-
-        .status-wrong {
-            color: #f44336;
-        }
+        .status-listening { color: #4ecdc4; }
+        .status-processing { color: #ffa726; }
+        .status-correct { color: #4caf50; }
+        .status-wrong { color: #f44336; }
+        .status-error { color: #f44336; }
 
         .heard-word {
             font-size: 24px;
@@ -242,31 +289,55 @@
             margin: 20px 0;
             text-align: center;
         }
+
+        .retry-info {
+            background: #fff3e0;
+            color: #f57c00;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>Ordläsningsspel med Taligenkänning</h1>
+        <h1>Ordläsningsspel</h1>
         <div class="instructions">
-            <strong>Instruktioner:</strong> Tryck på mikrofonen och läs det markerade ordet högt.
-            Tala tydligt och vänta på feedback innan nästa ord.
+            <strong>Instruktioner:</strong> Läs det markerade ordet. Du kan använda mikrofon eller skriva ordet.
         </div>
         <div class="timer">Tid kvar: <span id="timeLeft">60</span> sekunder</div>
         <div class="score">Rätta svar: <span id="currentScore">0</span></div>
     </div>
 
-    <div id="errorMessage" class="error-message hidden">
-        Din webbläsare stöder inte taligenkänning eller så har du inte gett tillåtelse för mikrofonen.
-    </div>
+    <div id="errorMessage" class="error-message hidden"></div>
+    <div id="retryMessage" class="retry-info hidden"></div>
 
     <div id="gameArea">
         <div class="word-grid" id="wordGrid"></div>
 
-        <div class="speech-section">
-            <button id="microphoneBtn" class="microphone-btn">🎤</button>
-            <div class="speech-status" id="speechStatus">Tryck på mikrofonen för att börja</div>
-            <div class="heard-word" id="heardWord">Väntar på tal...</div>
+        <div class="input-section">
+            <div class="mode-selector">
+                <button id="speechModeBtn" class="mode-btn active">🎤 Mikrofon</button>
+                <button id="textModeBtn" class="mode-btn">⌨️ Skriv</button>
+            </div>
+
+            <!-- Tal-läge -->
+            <div id="speechMode">
+                <button id="microphoneBtn" class="microphone-btn">🎤</button>
+                <div class="speech-status" id="speechStatus">Tryck på mikrofonen för att börja</div>
+                <div class="heard-word" id="heardWord">Väntar på tal...</div>
+            </div>
+
+            <!-- Text-läge -->
+            <div id="textMode" class="hidden">
+                <div class="text-input-area">
+                    <input type="text" id="wordInput" class="word-input" placeholder="Skriv ordet här..." autocomplete="off">
+                    <button id="submitBtn" class="submit-btn">Skicka</button>
+                </div>
+                <div class="heard-word" id="typedWord">Skriv ordet här ovan</div>
+            </div>
         </div>
 
         <div class="debug-info" id="debugInfo">
@@ -295,12 +366,7 @@
                 'fisk', 'fågel', 'blå', 'röd', 'grön', 'gul', 'stor', 'liten', 'snabb', 'långsam',
                 'glad', 'ledsen', 'varm', 'kall', 'ljus', 'mörk', 'hög', 'låg', 'ny', 'gammal',
                 'öppna', 'stänga', 'springa', 'gå', 'hoppa', 'dansa', 'sjunga', 'läsa', 'skriva', 'rita',
-                'äta', 'dricka', 'sova', 'vakna', 'leka', 'arbeta', 'titta', 'lyssna', 'tala', 'tänka',
-                'mamma', 'pappa', 'barn', 'syster', 'bror', 'morfar', 'mormor', 'vän', 'lärare', 'doktor',
-                'skola', 'hem', 'park', 'affär', 'bibliotek', 'museum', 'teater', 'sjukhus', 'station', 'flygplats',
-                'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag', 'söndag', 'januari', 'februari', 'mars',
-                'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december', 'vinter',
-                'vår', 'sommar', 'höst', 'snö', 'regn', 'vind', 'moln', 'himmel', 'stjärna', 'måne', 'äpple', 'banan'
+                'äta', 'dricka', 'sova', 'vakna', 'leka', 'arbeta', 'titta', 'lyssna', 'tala', 'tänka'
             ];
 
             this.gameTime = 60;
@@ -313,6 +379,9 @@
             this.timer = null;
             this.recognition = null;
             this.isListening = false;
+            this.speechMode = true;
+            this.networkRetryCount = 0;
+            this.maxNetworkRetries = 2;
 
             this.initializeElements();
             this.debugLog('Initialiserar applikation...');
@@ -333,7 +402,17 @@
             this.reportArea = document.getElementById('reportArea');
             this.restartBtn = document.getElementById('restartBtn');
             this.errorMessage = document.getElementById('errorMessage');
+            this.retryMessage = document.getElementById('retryMessage');
             this.debugContent = document.getElementById('debugContent');
+
+            // Nya element för text-läge
+            this.speechModeBtn = document.getElementById('speechModeBtn');
+            this.textModeBtn = document.getElementById('textModeBtn');
+            this.speechModeDiv = document.getElementById('speechMode');
+            this.textModeDiv = document.getElementById('textMode');
+            this.wordInput = document.getElementById('wordInput');
+            this.submitBtn = document.getElementById('submitBtn');
+            this.typedWord = document.getElementById('typedWord');
         }
 
         debugLog(message) {
@@ -360,18 +439,13 @@
             this.debugLog(`webkitSpeechRecognition: ${hasWebkitSpeech}`);
             this.debugLog(`SpeechRecognition: ${hasSpeech}`);
 
-            if (!hasWebkitSpeech && !hasSpeech) {
-                this.debugLog('❌ Ingen taligenkänning tillgänglig');
-                return false;
-            }
-
-            this.debugLog('✅ Taligenkänning stöds');
-            return true;
+            return hasWebkitSpeech || hasSpeech;
         }
 
         initializeSpeechRecognition() {
             if (!this.checkBrowserSupport()) {
-                this.showError("Taligenkänning stöds inte i din webbläsare. Prova Chrome eller Edge.");
+                this.debugLog('❌ Ingen taligenkänning tillgänglig - växlar till textläge');
+                this.switchToTextMode();
                 return;
             }
 
@@ -380,21 +454,30 @@
             try {
                 this.recognition = new SpeechRecognition();
                 this.debugLog('✅ SpeechRecognition-objekt skapat');
+
+                // Konfigurera för svenska
+                this.recognition.lang = 'sv-SE';
+                this.recognition.interimResults = false;
+                this.recognition.maxAlternatives = 3; // Fler alternativ för bättre träffsäkerhet
+                this.recognition.continuous = false;
+
+                // Försök med olika inställningar för att undvika network-fel
+                if (this.recognition.serviceURI !== undefined) {
+                    this.debugLog('Försöker med alternativa inställningar...');
+                }
+
+                this.setupSpeechEvents();
+                this.debugLog(`✅ Speech recognition konfigurerad för ${this.recognition.lang}`);
+
             } catch (error) {
                 this.debugLog(`❌ Fel vid skapande av SpeechRecognition: ${error.message}`);
-                this.showError("Kunde inte skapa taligenkänningsobjekt.");
-                return;
+                this.switchToTextMode();
             }
+        }
 
-            // Konfigurera taligenkänning för svenska
-            this.recognition.lang = 'sv-SE';
-            this.recognition.interimResults = false;
-            this.recognition.maxAlternatives = 1;
-            this.recognition.continuous = false;
+        setupSpeechEvents() {
+            if (!this.recognition) return;
 
-            this.debugLog(`Konfiguration: lang=${this.recognition.lang}, continuous=${this.recognition.continuous}`);
-
-            // Event-hanterare för taligenkänning
             this.recognition.onstart = () => {
                 this.debugLog('🎤 Recognition started');
                 this.isListening = true;
@@ -402,110 +485,186 @@
                 this.speechStatus.textContent = 'Lyssnar... Säg ordet nu!';
                 this.speechStatus.className = 'speech-status status-listening';
                 this.heardWord.textContent = 'Lyssnar...';
+                this.networkRetryCount = 0; // Återställ retry-räknare vid lyckad start
             };
 
             this.recognition.onresult = (event) => {
-                const result = event.results[0][0];
-                const spokenWord = result.transcript.toLowerCase().trim();
-                const confidence = result.confidence;
+                let spokenWord = '';
+                let confidence = 0;
 
-                this.debugLog(`🗣️ Resultat: "${spokenWord}" (confidence: ${confidence})`);
+                // Försök med alla alternativ
+                for (let i = 0; i < event.results[0].length; i++) {
+                    const alternative = event.results[0][i];
+                    this.debugLog(`Alternativ ${i+1}: "${alternative.transcript}" (confidence: ${alternative.confidence})`);
+
+                    if (i === 0 || alternative.confidence > confidence) {
+                        spokenWord = alternative.transcript.toLowerCase().trim();
+                        confidence = alternative.confidence;
+                    }
+                }
+
+                this.debugLog(`🗣️ Bästa resultat: "${spokenWord}" (confidence: ${confidence})`);
 
                 this.heardWord.textContent = `Du sa: "${spokenWord}"`;
                 this.speechStatus.textContent = 'Bearbetar...';
                 this.speechStatus.className = 'speech-status status-processing';
 
-                // Kontrollera svaret efter en kort fördröjning
-                setTimeout(() => this.checkSpokenAnswer(spokenWord), 500);
+                setTimeout(() => this.checkAnswer(spokenWord), 500);
             };
 
             this.recognition.onerror = (event) => {
                 this.debugLog(`❌ Recognition error: ${event.error}`);
-                this.stopListening();
-
-                if (event.error === 'not-allowed') {
-                    this.showError("Mikrofontillåtelse nekades. Aktivera mikrofonen i webbläsarinställningar.");
-                } else if (event.error === 'no-speech') {
-                    this.speechStatus.textContent = 'Inget tal upptäckt. Försök igen.';
-                    this.speechStatus.className = 'speech-status';
-                } else if (event.error === 'aborted') {
-                    this.debugLog('Recognition avbruten');
-                } else {
-                    this.speechStatus.textContent = `Fel: ${event.error}`;
-                    this.speechStatus.className = 'speech-status';
-                }
+                this.handleSpeechError(event.error);
             };
 
             this.recognition.onend = () => {
                 this.debugLog('🔇 Recognition ended');
                 this.stopListening();
             };
+        }
 
-            this.debugLog('✅ Speech recognition initialiserad');
+        handleSpeechError(error) {
+            this.stopListening();
+
+            switch (error) {
+                case 'network':
+                    this.networkRetryCount++;
+                    this.debugLog(`Network error (försök ${this.networkRetryCount}/${this.maxNetworkRetries})`);
+
+                    if (this.networkRetryCount < this.maxNetworkRetries) {
+                        this.microphoneBtn.classList.add('retry');
+                        this.speechStatus.textContent = 'Nätverksfel - tryck igen för att försöka igen';
+                        this.speechStatus.className = 'speech-status status-error';
+                        this.showRetryMessage('Nätverksfel upptäckt. Tryck på mikrofonen igen eller växla till textläge.');
+
+                        // Automatisk retry efter 2 sekunder
+                        setTimeout(() => {
+                            if (this.gameRunning && !this.isListening) {
+                                this.debugLog('Försöker automatisk retry...');
+                                this.startListening();
+                            }
+                        }, 2000);
+                    } else {
+                        this.showError('För många nätverksfel. Växlar till textläge.');
+                        this.switchToTextMode();
+                    }
+                    break;
+
+                case 'not-allowed':
+                    this.showError("Mikrofontillåtelse nekades. Aktivera mikrofonen eller använd textläge.");
+                    break;
+
+                case 'no-speech':
+                    this.speechStatus.textContent = 'Inget tal upptäckt. Försök igen.';
+                    this.speechStatus.className = 'speech-status';
+                    break;
+
+                case 'audio-capture':
+                    this.showError('Problem med ljudinspelning. Kontrollera att mikrofonen fungerar.');
+                    break;
+
+                default:
+                    this.speechStatus.textContent = `Fel: ${error}. Försök igen eller använd textläge.`;
+                    this.speechStatus.className = 'speech-status status-error';
+            }
         }
 
         setupEventListeners() {
+            // Mikrofonknapp
             this.microphoneBtn.addEventListener('click', () => {
                 this.debugLog('🖱️ Mikrofonknapp klickad');
                 if (this.gameRunning && !this.isListening) {
+                    this.microphoneBtn.classList.remove('retry');
                     this.startListening();
-                } else if (this.isListening) {
-                    this.debugLog('⏸️ Redan lyssnar, ignorerar klick');
-                } else if (!this.gameRunning) {
-                    this.debugLog('⏸️ Spelet körs inte, ignorerar klick');
                 }
+            });
+
+            // Växla mellan tal och text
+            this.speechModeBtn.addEventListener('click', () => this.switchToSpeechMode());
+            this.textModeBtn.addEventListener('click', () => this.switchToTextMode());
+
+            // Text-input
+            this.submitBtn.addEventListener('click', () => this.handleTextInput());
+            this.wordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.handleTextInput();
+                }
+            });
+
+            this.wordInput.addEventListener('input', () => {
+                const value = this.wordInput.value.trim();
+                this.typedWord.textContent = value ? `Du skrev: "${value}"` : 'Skriv ordet här ovan';
             });
 
             this.restartBtn.addEventListener('click', () => this.restartGame());
         }
 
-        async requestMicrophonePermission() {
-            try {
-                this.debugLog('🎤 Begär mikrofonbehörighet...');
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                this.debugLog('✅ Mikrofonbehörighet beviljad');
-
-                // Stäng stream:en direkt
-                stream.getTracks().forEach(track => track.stop());
-                return true;
-            } catch (error) {
-                this.debugLog(`❌ Mikrofonbehörighet nekad: ${error.message}`);
-                this.showError(`Mikrofonfel: ${error.message}`);
-                return false;
+        switchToSpeechMode() {
+            if (!this.recognition) {
+                this.showError('Taligenkänning är inte tillgänglig.');
+                return;
             }
+
+            this.speechMode = true;
+            this.speechModeBtn.classList.add('active');
+            this.textModeBtn.classList.remove('active');
+            this.speechModeDiv.classList.remove('hidden');
+            this.textModeDiv.classList.add('hidden');
+            this.hideMessages();
+            this.debugLog('Växlade till talläge');
+        }
+
+        switchToTextMode() {
+            this.speechMode = false;
+            this.speechModeBtn.classList.remove('active');
+            this.textModeBtn.classList.add('active');
+            this.speechModeDiv.classList.add('hidden');
+            this.textModeDiv.classList.remove('hidden');
+            this.hideMessages();
+            this.wordInput.focus();
+            this.debugLog('Växlade till textläge');
+        }
+
+        handleTextInput() {
+            const inputWord = this.wordInput.value.trim().toLowerCase();
+            if (!inputWord) return;
+
+            this.debugLog(`📝 Textinmatning: "${inputWord}"`);
+            this.checkAnswer(inputWord);
+            this.wordInput.value = '';
+            this.typedWord.textContent = 'Skriv nästa ord här ovan';
         }
 
         async startListening() {
-            if (!this.recognition || !this.gameRunning) {
-                this.debugLog('❌ Kan inte starta: recognition eller game inte redo');
-                return;
-            }
+            if (!this.recognition || !this.gameRunning || !this.speechMode) return;
 
             this.debugLog('🎤 Försöker starta listening...');
 
-            // Begär mikrofonbehörighet först
-            const hasPermission = await this.requestMicrophonePermission();
-            if (!hasPermission) {
-                return;
-            }
-
             try {
+                // Begär mikrofonbehörighet först
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.debugLog('✅ Mikrofonbehörighet beviljad');
+                stream.getTracks().forEach(track => track.stop());
+
+                // Starta recognition
                 this.recognition.start();
                 this.debugLog('✅ Recognition.start() kallad');
+
             } catch (error) {
-                this.debugLog(`❌ Fel vid start av recognition: ${error.message}`);
-                this.speechStatus.textContent = `Kunde inte starta mikrofonen: ${error.message}`;
+                this.debugLog(`❌ Fel vid start: ${error.message}`);
+                this.handleSpeechError(error.name === 'NotAllowedError' ? 'not-allowed' : 'audio-capture');
             }
         }
 
         stopListening() {
-            this.debugLog('🔇 Stoppar listening...');
             this.isListening = false;
             this.microphoneBtn.classList.remove('listening');
 
-            if (this.gameRunning) {
+            if (this.gameRunning && this.speechMode) {
                 setTimeout(() => {
-                    if (this.speechStatus.textContent !== 'Rätt!' && this.speechStatus.textContent !== 'Fel!') {
+                    if (this.speechStatus &&
+                        !this.speechStatus.textContent.includes('Rätt!') &&
+                        !this.speechStatus.textContent.includes('Fel!')) {
                         this.speechStatus.textContent = 'Tryck på mikrofonen för nästa ord';
                         this.speechStatus.className = 'speech-status';
                     }
@@ -513,63 +672,86 @@
             }
         }
 
-        checkSpokenAnswer(spokenWord) {
+        checkAnswer(answer) {
             if (!this.gameRunning) return;
 
             const currentWord = this.words[this.currentWordIndex].toLowerCase();
             this.totalAttempts++;
 
-            this.debugLog(`🔍 Jämför: "${spokenWord}" vs "${currentWord}"`);
+            this.debugLog(`🔍 Jämför: "${answer}" vs "${currentWord}"`);
 
-            // Enkla ordmatchningar och vanliga variationer
-            const isCorrect = this.compareWords(spokenWord, currentWord);
-
+            const isCorrect = this.compareWords(answer, currentWord);
             this.debugLog(`${isCorrect ? '✅' : '❌'} Resultat: ${isCorrect ? 'Rätt' : 'Fel'}`);
 
             if (isCorrect) {
-                this.correctAnswers++;
-                this.currentScore.textContent = this.correctAnswers;
-
-                this.speechStatus.textContent = 'Rätt! Bra jobbat!';
-                this.speechStatus.className = 'speech-status status-correct';
-
-                // Markera som korrekt
-                const currentCard = document.getElementById(`word-${this.currentWordIndex}`);
-                if (currentCard) {
-                    currentCard.classList.remove('highlighted');
-                    currentCard.classList.add('correct');
-                }
-
-                // Gå till nästa ord
-                setTimeout(() => this.moveToNextWord(), 1500);
+                this.handleCorrectAnswer();
             } else {
-                this.wrongAnswers++;
-
-                this.speechStatus.textContent = `Fel! Ordet var "${this.words[this.currentWordIndex]}"`;
-                this.speechStatus.className = 'speech-status status-wrong';
-
-                // Visa fel-animation
-                const currentCard = document.getElementById(`word-${this.currentWordIndex}`);
-                if (currentCard) {
-                    currentCard.classList.add('wrong');
-                    setTimeout(() => currentCard.classList.remove('wrong'), 500);
-                }
+                this.handleWrongAnswer();
             }
         }
 
+        handleCorrectAnswer() {
+            this.correctAnswers++;
+            this.currentScore.textContent = this.correctAnswers;
+
+            if (this.speechMode) {
+                this.speechStatus.textContent = 'Rätt! Bra jobbat!';
+                this.speechStatus.className = 'speech-status status-correct';
+            } else {
+                this.typedWord.textContent = 'Rätt! Bra jobbat!';
+                this.typedWord.style.color = '#4caf50';
+            }
+
+            // Markera som korrekt
+            const currentCard = document.getElementById(`word-${this.currentWordIndex}`);
+            if (currentCard) {
+                currentCard.classList.remove('highlighted');
+                currentCard.classList.add('correct');
+            }
+
+            setTimeout(() => this.moveToNextWord(), 1500);
+        }
+
+        handleWrongAnswer() {
+            this.wrongAnswers++;
+            const correctWord = this.words[this.currentWordIndex];
+
+            if (this.speechMode) {
+                this.speechStatus.textContent = `Fel! Ordet var "${correctWord}"`;
+                this.speechStatus.className = 'speech-status status-wrong';
+            } else {
+                this.typedWord.textContent = `Fel! Ordet var "${correctWord}"`;
+                this.typedWord.style.color = '#f44336';
+            }
+
+            // Visa fel-animation
+            const currentCard = document.getElementById(`word-${this.currentWordIndex}`);
+            if (currentCard) {
+                currentCard.classList.add('wrong');
+                setTimeout(() => currentCard.classList.remove('wrong'), 500);
+            }
+
+            setTimeout(() => {
+                if (this.speechMode) {
+                    this.speechStatus.textContent = 'Tryck på mikrofonen för nästa ord';
+                    this.speechStatus.className = 'speech-status';
+                } else {
+                    this.typedWord.textContent = 'Skriv nästa ord här ovan';
+                    this.typedWord.style.color = '#333';
+                }
+            }, 2000);
+        }
+
         compareWords(spoken, target) {
-            // Exakt matchning
             if (spoken === target) return true;
 
-            // Ta bort vanliga taligenkänningsfel
             const normalizedSpoken = spoken
-                .replace(/\s+/g, '') // Ta bort mellanslag
-                .replace(/[.,!?]/g, '') // Ta bort interpunktion
+                .replace(/\s+/g, '')
+                .replace(/[.,!?]/g, '')
                 .toLowerCase();
 
             const normalizedTarget = target.toLowerCase();
 
-            // Kontrollera om orden är mycket lika (levenshtein distance)
             return this.levenshteinDistance(normalizedSpoken, normalizedTarget) <= 1;
         }
 
@@ -616,12 +798,10 @@
         }
 
         highlightCurrentWord() {
-            // Ta bort tidigare markering
             document.querySelectorAll('.word-card').forEach(card => {
                 card.classList.remove('highlighted');
             });
 
-            // Markera aktuellt ord
             if (this.currentWordIndex < this.words.length) {
                 const currentCard = document.getElementById(`word-${this.currentWordIndex}`);
                 if (currentCard && !currentCard.classList.contains('correct')) {
@@ -635,7 +815,6 @@
             let foundNext = false;
             let attempts = 0;
 
-            // Leta efter nästa ord som inte är rätt besvarad
             while (!foundNext && attempts < this.words.length) {
                 this.currentWordIndex = (this.currentWordIndex + 1) % this.words.length;
                 const nextCard = document.getElementById(`word-${this.currentWordIndex}`);
@@ -648,11 +827,16 @@
 
             if (foundNext) {
                 this.highlightCurrentWord();
-                this.speechStatus.textContent = 'Tryck på mikrofonen för nästa ord';
-                this.speechStatus.className = 'speech-status';
-                this.heardWord.textContent = 'Väntar på tal...';
+                if (this.speechMode) {
+                    this.speechStatus.textContent = 'Tryck på mikrofonen för nästa ord';
+                    this.speechStatus.className = 'speech-status';
+                    this.heardWord.textContent = 'Väntar på tal...';
+                } else {
+                    this.typedWord.textContent = 'Skriv nästa ord här ovan';
+                    this.typedWord.style.color = '#333';
+                    this.wordInput.focus();
+                }
             } else {
-                // Alla ord är besvarade korrekt
                 this.debugLog('🏁 Alla ord är korrekt besvarade');
                 this.endGame();
             }
@@ -671,17 +855,16 @@
         }
 
         startGame() {
-            if (!this.recognition) {
-                this.showError("Taligenkänning är inte tillgänglig.");
-                return;
-            }
-
             this.debugLog('🎮 Startar spel...');
             this.gameRunning = true;
             this.createWordGrid();
             this.currentWordIndex = 0;
             this.highlightCurrentWord();
             this.startTimer();
+
+            if (!this.speechMode) {
+                this.wordInput.focus();
+            }
         }
 
         endGame() {
@@ -716,7 +899,6 @@
         restartGame() {
             this.debugLog('🔄 Startar om spel...');
 
-            // Återställ alla värden
             this.currentTime = this.gameTime;
             this.currentWordIndex = 0;
             this.correctAnswers = 0;
@@ -724,24 +906,27 @@
             this.totalAttempts = 0;
             this.gameRunning = false;
             this.isListening = false;
+            this.networkRetryCount = 0;
 
-            // Uppdatera UI
             this.timeLeft.textContent = this.currentTime;
             this.currentScore.textContent = this.correctAnswers;
-            this.speechStatus.textContent = 'Tryck på mikrofonen för att börja';
-            this.speechStatus.className = 'speech-status';
-            this.heardWord.textContent = 'Väntar på tal...';
-            this.microphoneBtn.classList.remove('disabled', 'listening');
-            this.errorMessage.classList.add('hidden');
+            this.microphoneBtn.classList.remove('disabled', 'listening', 'retry');
+            this.wordInput.value = '';
+            this.hideMessages();
 
-            // Rensa debug-loggen
+            if (this.speechMode) {
+                this.speechStatus.textContent = 'Tryck på mikrofonen för att börja';
+                this.speechStatus.className = 'speech-status';
+                this.heardWord.textContent = 'Väntar på tal...';
+            } else {
+                this.typedWord.textContent = 'Skriv ordet här ovan';
+                this.typedWord.style.color = '#333';
+            }
+
             this.debugContent.innerHTML = '';
-
-            // Visa spel-området och dölj rapporten
             this.reportArea.classList.add('hidden');
             this.gameArea.classList.remove('hidden');
 
-            // Starta nytt spel
             this.startGame();
         }
 
@@ -750,9 +935,18 @@
             this.errorMessage.textContent = message;
             this.errorMessage.classList.remove('hidden');
         }
+
+        showRetryMessage(message) {
+            this.retryMessage.textContent = message;
+            this.retryMessage.classList.remove('hidden');
+        }
+
+        hideMessages() {
+            this.errorMessage.classList.add('hidden');
+            this.retryMessage.classList.add('hidden');
+        }
     }
 
-    // Starta spelet när sidan laddas
     document.addEventListener('DOMContentLoaded', () => {
         new SpeechWordGame();
     });
