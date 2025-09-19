@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordläsningsspel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .word-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 10px;
+            margin-bottom: 30px;
+            max-width: 800px;
+            margin: 0 auto 30px;
+        }
+
+        .word-card {
+            background-color: #ffffff;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .word-card:hover {
+            background-color: #f8f8f8;
+        }
+
+        .word-card.highlighted {
+            background-color: #ffeb3b;
+            border-color: #fbc02d;
+            box-shadow: 0 0 15px rgba(255, 235, 59, 0.6);
+            transform: scale(1.05);
+        }
+
+        .word-card.correct {
+            background-color: #c8e6c9;
+            border-color: #4caf50;
+            opacity: 0.6;
+        }
+
+        .input-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .word-input {
+            padding: 12px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .submit-btn {
+            padding: 12px 24px;
+            font-size: 18px;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .submit-btn:hover {
+            background-color: #1976d2;
+        }
+
+        .report {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .report h2 {
+            color: #2196f3;
+            margin-bottom: 20px;
+        }
+
+        .report-stats {
+            font-size: 18px;
+            margin: 15px 0;
+        }
+
+        .restart-btn {
+            padding: 12px 24px;
+            font-size: 18px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .restart-btn:hover {
+            background-color: #45a049;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .score {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2196f3;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ordläsningsspel</h1>
+            <div class="timer">Tid kvar: <span id="timeLeft">60</span> sekunder</div>
+            <div class="score">Rätta svar: <span id="currentScore">0</span></div>
+        </div>
+
+        <div id="gameArea">
+            <div class="word-grid" id="wordGrid"></div>
+            
+            <div class="input-section">
+                <input type="text" id="wordInput" class="word-input" placeholder="Skriv ordet du ser markerat" autocomplete="off">
+                <button id="submitBtn" class="submit-btn">Skicka</button>
+            </div>
+        </div>
+
+        <div id="reportArea" class="report hidden">
+            <h2>Spelresultat</h2>
+            <div class="report-stats">
+                <div>Rätta svar: <span id="correctAnswers">0</span></div>
+                <div>Fel svar: <span id="wrongAnswers">0</span></div>
+                <div>Totalt försök: <span id="totalAttempts">0</span></div>
+                <div>Procent rätt: <span id="percentage">0</span>%</div>
+            </div>
+            <button id="restartBtn" class="restart-btn">Spela igen</button>
+        </div>
+    </div>
+
+    <script>
+        class WordReadingGame {
+            constructor() {
+                this.words = [
+                    'hus', 'bil', 'bok', 'sol', 'katt', 'hund', 'sko', 'hatt', 'boll', 'träd',
+                    'fisk', 'fågel', 'blå', 'röd', 'grön', 'gul', 'stor', 'liten', 'snabb', 'långsam',
+                    'glad', 'ledsen', 'varm', 'kall', 'ljus', 'mörk', 'hög', 'låg', 'ny', 'gammal',
+                    'öppna', 'stänga', 'springa', 'gå', 'hoppa', 'dansa', 'sjunga', 'läsa', 'skriva', 'rita',
+                    'äta', 'dricka', 'sova', 'vakna', 'leka', 'arbeta', 'titta', 'lyssna', 'tala', 'tänka',
+                    'mamma', 'pappa', 'barn', 'syster', 'bror', 'morfar', 'mormor', 'vän', 'lärare', 'doktor',
+                    'skola', 'hem', 'park', 'affär', 'bibliotek', 'museum', 'teater', 'sjukhus', 'station', 'flygplats',
+                    'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag', 'söndag', 'januari', 'februari', 'mars',
+                    'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december', 'vinter',
+                    'vår', 'sommar', 'höst', 'snö', 'regn', 'vind', 'moln', 'himmel', 'stjärna', 'måne', 'äpple', 'banan'
+                ];
+                
+                this.gameTime = 60;
+                this.currentTime = this.gameTime;
+                this.currentWordIndex = 0;
+                this.correctAnswers = 0;
+                this.wrongAnswers = 0;
+                this.totalAttempts = 0;
+                this.gameRunning = false;
+                this.timer = null;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.startGame();
+            }
+
+            initializeElements() {
+                this.wordGrid = document.getElementById('wordGrid');
+                this.wordInput = document.getElementById('wordInput');
+                this.submitBtn = document.getElementById('submitBtn');
+                this.timeLeft = document.getElementById('timeLeft');
+                this.currentScore = document.getElementById('currentScore');
+                this.gameArea = document.getElementById('gameArea');
+                this.reportArea = document.getElementById('reportArea');
+                this.restartBtn = document.getElementById('restartBtn');
+            }
+
+            setupEventListeners() {
+                this.submitBtn.addEventListener('click', () => this.checkAnswer());
+                this.wordInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.checkAnswer();
+                    }
+                });
+                this.restartBtn.addEventListener('click', () => this.restartGame());
+            }
+
+            createWordGrid() {
+                this.wordGrid.innerHTML = '';
+                
+                this.words.forEach((word, index) => {
+                    const wordCard = document.createElement('div');
+                    wordCard.className = 'word-card';
+                    wordCard.textContent = word;
+                    wordCard.id = `word-${index}`;
+                    this.wordGrid.appendChild(wordCard);
+                });
+            }
+
+            highlightCurrentWord() {
+                // Ta bort tidigare markering
+                document.querySelectorAll('.word-card').forEach(card => {
+                    card.classList.remove('highlighted');
+                });
+                
+                // Markera aktuellt ord
+                if (this.currentWordIndex < this.words.length) {
+                    const currentCard = document.getElementById(`word-${this.currentWordIndex}`);
+                    if (currentCard && !currentCard.classList.contains('correct')) {
+                        currentCard.classList.add('highlighted');
+                    }
+                }
+            }
+
+            checkAnswer() {
+                if (!this.gameRunning) return;
+                
+                const userInput = this.wordInput.value.trim().toLowerCase();
+                const currentWord = this.words[this.currentWordIndex].toLowerCase();
+                
+                this.totalAttempts++;
+                
+                if (userInput === currentWord) {
+                    this.correctAnswers++;
+                    this.currentScore.textContent = this.correctAnswers;
+                    
+                    // Markera som korrekt
+                    const currentCard = document.getElementById(`word-${this.currentWordIndex}`);
+                    if (currentCard) {
+                        currentCard.classList.remove('highlighted');
+                        currentCard.classList.add('correct');
+                    }
+                    
+                    // Gå till nästa ord som inte är rätt besvarad
+                    this.moveToNextWord();
+                } else {
+                    this.wrongAnswers++;
+                }
+                
+                this.wordInput.value = '';
+                this.wordInput.focus();
+            }
+
+            moveToNextWord() {
+                let foundNext = false;
+                let attempts = 0;
+                
+                // Leta efter nästa ord som inte är rätt besvarad
+                while (!foundNext && attempts < this.words.length) {
+                    this.currentWordIndex = (this.currentWordIndex + 1) % this.words.length;
+                    const nextCard = document.getElementById(`word-${this.currentWordIndex}`);
+                    
+                    if (nextCard && !nextCard.classList.contains('correct')) {
+                        foundNext = true;
+                    }
+                    attempts++;
+                }
+                
+                if (foundNext) {
+                    this.highlightCurrentWord();
+                } else {
+                    // Alla ord är besvarade korrekt
+                    this.endGame();
+                }
+            }
+
+            startTimer() {
+                this.timer = setInterval(() => {
+                    this.currentTime--;
+                    this.timeLeft.textContent = this.currentTime;
+                    
+                    if (this.currentTime <= 0) {
+                        this.endGame();
+                    }
+                }, 1000);
+            }
+
+            startGame() {
+                this.gameRunning = true;
+                this.createWordGrid();
+                this.currentWordIndex = 0;
+                this.highlightCurrentWord();
+                this.startTimer();
+                this.wordInput.focus();
+            }
+
+            endGame() {
+                this.gameRunning = false;
+                clearInterval(this.timer);
+                this.showReport();
+            }
+
+            showReport() {
+                this.gameArea.classList.add('hidden');
+                this.reportArea.classList.remove('hidden');
+                
+                const percentage = this.totalAttempts > 0 ? 
+                    Math.round((this.correctAnswers / this.totalAttempts) * 100) : 0;
+                
+                document.getElementById('correctAnswers').textContent = this.correctAnswers;
+                document.getElementById('wrongAnswers').textContent = this.wrongAnswers;
+                document.getElementById('totalAttempts').textContent = this.totalAttempts;
+                document.getElementById('percentage').textContent = percentage;
+            }
+
+            restartGame() {
+                // Återställ alla värden
+                this.currentTime = this.gameTime;
+                this.currentWordIndex = 0;
+                this.correctAnswers = 0;
+                this.wrongAnswers = 0;
+                this.totalAttempts = 0;
+                this.gameRunning = false;
+                
+                // Uppdatera UI
+                this.timeLeft.textContent = this.currentTime;
+                this.currentScore.textContent = this.correctAnswers;
+                this.wordInput.value = '';
+                
+                // Visa spel-området och dölj rapporten
+                this.reportArea.classList.add('hidden');
+                this.gameArea.classList.remove('hidden');
+                
+                // Starta nytt spel
+                this.startGame();
+            }
+        }
+
+        // Starta spelet när sidan laddas
+        document.addEventListener('DOMContentLoaded', () => {
+            new WordReadingGame();
+        });
+    </script>
+</body>
+</html>
